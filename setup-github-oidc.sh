@@ -280,6 +280,10 @@ EOF
     aws iam attach-role-policy \
         --role-name "$ROLE_NAME" \
         --policy-arn "$POLICY_ARN"
+
+    aws iam attach-role-policy \
+        --role-name "$ROLE_NAME" \
+        --policy-arn "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
     
     print_success "Attached custom Terraform policy"
     

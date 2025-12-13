@@ -1,0 +1,252 @@
+name: Application CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+      - 'helm-chart/**'
+      - '.github/workflows/app-deploy.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+      - 'helm-chart/**'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: eu-north-1
+  EKS_CLUSTER_NAME: hello-world-eks
+  ECR_REPOSITORY: hello-world-app
+  HELM_CHART_NAME: hello-world-app
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false  # Disable provenance for compatibility
+
+      - name: Image summary
+        run: |
+          echo "### Docker Image Built Successfully! 🐳" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+
+  package-helm:
+    name: Package Helm Chart
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    outputs:
+      chart-version: ${{ steps.chart-version.outputs.version }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.13.0'
+
+      - name: Get Chart Version
+        id: chart-version
+        run: |
+          CHART_VERSION=$(grep '^version:' helm-chart/Chart.yaml | awk '{print $2}')
+          echo "version=$CHART_VERSION" >> $GITHUB_OUTPUT
+          echo "Chart version: $CHART_VERSION"
+
+      - name: Package Helm Chart
+        run: |
+          helm package helm-chart/
+          ls -lh *.tgz
+          
+      - name: Push Helm Chart to ECR (OCI)
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          CHART_VERSION: ${{ steps.chart-version.outputs.version }}
+        run: |
+          # Push to ECR OCI registry
+          helm push ${HELM_CHART_NAME}-${CHART_VERSION}.tgz \
+            oci://${REGISTRY}/hello-world-helm
+
+      - name: Chart summary
+        env:
+          CHART_VERSION: ${{ steps.chart-version.outputs.version }}
+        run: |
+          echo "### Helm Chart Packaged Successfully! ⎈" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Chart:** \`${HELM_CHART_NAME}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`${CHART_VERSION}\`" >> $GITHUB_STEP_SUMMARY
+
+  deploy-to-eks:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    needs: [build-and-push, package-helm]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production  # Add environment protection if needed
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name ${{ env.EKS_CLUSTER_NAME }} \
+            --region ${{ env.AWS_REGION }}
+          
+          # Verify connection
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.13.0'
+
+      - name: Deploy to EKS with Helm
+        env:
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "Deploying application to EKS..."
+          echo "Image: ${REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          
+          # Deploy using local Helm chart
+          helm upgrade --install ${{ env.HELM_CHART_NAME }} \
+            ./helm-chart \
+            --set image.repository=${REGISTRY}/${ECR_REPOSITORY} \
+            --set image.tag=${IMAGE_TAG} \
+            --set image.pullPolicy=Always \
+            --wait \
+            --timeout 5m \
+            --atomic
+
+      - name: Verify deployment
+        run: |
+          echo "Verifying deployment..."
+          
+          # Wait for rollout to complete
+          kubectl rollout status deployment/${{ env.HELM_CHART_NAME }} --timeout=5m
+          
+          # Get deployment info
+          kubectl get deployment ${{ env.HELM_CHART_NAME }}
+          kubectl get pods -l app.kubernetes.io/name=${{ env.HELM_CHART_NAME }}
+          kubectl get svc -l app.kubernetes.io/name=${{ env.HELM_CHART_NAME }}
+
+      - name: Get application URL
+        id: app-url
+        run: |
+          # Get LoadBalancer URL (if service type is LoadBalancer)
+          LB_HOSTNAME=$(kubectl get svc ${{ env.HELM_CHART_NAME }} \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
+          
+          if [ -n "$LB_HOSTNAME" ]; then
+            echo "url=http://${LB_HOSTNAME}" >> $GITHUB_OUTPUT
+            echo "Application URL: http://${LB_HOSTNAME}"
+          else
+            echo "url=ClusterIP (internal only)" >> $GITHUB_OUTPUT
+            echo "Service is ClusterIP - internal only"
+          fi
+
+      - name: Deployment summary
+        env:
+          APP_URL: ${{ steps.app-url.outputs.url }}
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
+          CHART_VERSION: ${{ needs.package-helm.outputs.chart-version }}
+        run: |
+          echo "### 🚀 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** \`${IMAGE_TAG}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Chart Version:** \`${CHART_VERSION}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Application URL:** ${APP_URL}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment Details:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          kubectl get pods -l app.kubernetes.io/name=${{ env.HELM_CHART_NAME }} >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🚀 Application Deployed Successfully!\n\n**Image:** \`${{ needs.build-and-push.outputs.image-tag }}\`\n**Chart:** \`${{ needs.package-helm.outputs.chart-version }}\``
+            })
