@@ -1,0 +1,75 @@
+# Optional: RDS PostgreSQL database (if var.enable_rds is true)
+# For production, prefer using PostgreSQL in Kubernetes via Helm
+
+resource "aws_db_subnet_group" "postgres" {
+  count = var.enable_rds ? 1 : 0
+
+  name       = "${var.project_name}-db-subnet-group"
+  subnet_ids = module.vpc.private_subnets
+
+  tags = {
+    Name = "${var.project_name}-db-subnet-group"
+  }
+}
+
+resource "aws_security_group" "rds" {
+  count = var.enable_rds ? 1 : 0
+
+  name_prefix = "${var.project_name}-rds-"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+    description = "PostgreSQL access from VPC"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound traffic"
+  }
+
+  tags = {
+    Name = "${var.project_name}-rds-sg"
+  }
+}
+
+resource "aws_db_instance" "postgres" {
+  count = var.enable_rds ? 1 : 0
+
+  identifier     = "${var.project_name}-db"
+  engine         = "postgres"
+  engine_version = "15.4"
+  instance_class = var.rds_instance_class
+
+  allocated_storage     = var.rds_allocated_storage
+  max_allocated_storage = var.rds_allocated_storage * 2
+  storage_type          = "gp3"
+  storage_encrypted     = true
+
+  db_name  = var.rds_database_name
+  username = var.rds_username
+  password = var.rds_password
+
+  db_subnet_group_name   = aws_db_subnet_group.postgres[0].name
+  vpc_security_group_ids = [aws_security_group.rds[0].id]
+
+  backup_retention_period = 7
+  backup_window           = "03:00-04:00"
+  maintenance_window      = "mon:04:00-mon:05:00"
+
+  skip_final_snapshot       = var.environment == "dev" ? true : false
+  final_snapshot_identifier = var.environment == "dev" ? null : "${var.project_name}-final-snapshot-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
+
+  enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
+  deletion_protection             = var.environment == "prod" ? true : false
+
+  tags = {
+    Name = "${var.project_name}-db"
+  }
+}
