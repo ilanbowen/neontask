@@ -83,10 +83,10 @@ jobs:
       - name: Push Helm chart to ECR (OCI)
         run: |
           CHART_FILE=$(ls artifacts/hello-world-*.tgz)
-          CHART_VERSION=$(echo $CHART_FILE | sed -E 's/.*hello-world-([0-9\.]+)\.tgz/\1/')
           export HELM_EXPERIMENTAL_OCI=1
+          echo "Pushing chart: $CHART_FILE"
+          echo "To repo: oci://$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_HELM_REPO"
           helm push $CHART_FILE oci://$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_HELM_REPO
-          echo "CHART_VERSION=$CHART_VERSION" >> $GITHUB_ENV
 
   deploy:
     runs-on: ubuntu-latest
