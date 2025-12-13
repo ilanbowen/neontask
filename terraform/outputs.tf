@@ -39,6 +39,31 @@ output "configure_kubectl" {
   value       = "aws eks update-kubeconfig --region ${var.aws_region} --name ${module.eks.cluster_name}"
 }
 
+output "ecr_repository_url" {
+  description = "ECR repository URL for Docker images"
+  value       = aws_ecr_repository.app.repository_url
+}
+
+output "ecr_repository_name" {
+  description = "ECR repository name for Docker images"
+  value       = aws_ecr_repository.app.name
+}
+
+output "ecr_helm_repository_url" {
+  description = "ECR repository URL for Helm charts"
+  value       = aws_ecr_repository.helm.repository_url
+}
+
+output "ecr_helm_repository_name" {
+  description = "ECR repository name for Helm charts"
+  value       = aws_ecr_repository.helm.name
+}
+
+output "ecr_registry_id" {
+  description = "ECR registry ID (AWS Account ID)"
+  value       = aws_ecr_repository.app.registry_id
+}
+
 /* output "rds_endpoint" {
   description = "RDS instance endpoint"
   value       = var.enable_rds ? aws_db_instance.postgres[0].endpoint : null
