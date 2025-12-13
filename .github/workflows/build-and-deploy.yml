@@ -52,6 +52,9 @@ jobs:
       id-token: write
       contents: read
 
+    outputs:
+      chart_version: ${{ steps.set-chart-version.outputs.chart_version }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -80,6 +83,15 @@ jobs:
           helm package . --destination ../../artifacts
           ls -l ../../artifacts
 
+      - name: Determine chart version
+        id: set-chart-version
+        run: |
+          CHART_FILE=$(ls artifacts/hello-world-*.tgz)
+          CHART_VERSION=$(echo "$CHART_FILE" | sed -E 's/.*hello-world-([0-9\.]+)\.tgz/\1/')
+          echo "Chart file: $CHART_FILE"
+          echo "Chart version: $CHART_VERSION"
+          echo "chart_version=$CHART_VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Push Helm chart to ECR (OCI)
         run: |
           CHART_FILE=$(ls artifacts/hello-world-*.tgz)
@@ -95,6 +107,9 @@ jobs:
     permissions:
       id-token: write
       contents: read
+
+    env:
+      CHART_VERSION: ${{ needs.package-and-push-chart.outputs.chart_version }}
 
     steps:
       - name: Configure AWS credentials (OIDC)
@@ -131,16 +146,15 @@ jobs:
 
       - name: Deploy with Helm from ECR OCI
         env:
-          IMAGE_TAG: ${{ needs.build-and-push-image.outputs.IMAGE_TAG }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          # Get IMAGE_TAG and CHART_VERSION from env
-          echo "Using IMAGE_TAG=${IMAGE_TAG:-${GITHUB_SHA}}"
+          echo "Using IMAGE_TAG=$IMAGE_TAG"
           echo "Using CHART_VERSION=$CHART_VERSION"
 
           helm upgrade --install hello-world \
-            oci://$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_HELM_REPO \
-            --version $CHART_VERSION \
-            --namespace $K8S_NAMESPACE \
+            oci://$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_HELM_REPO/hello-world \
+            --version "$CHART_VERSION" \
+            --namespace "$K8S_NAMESPACE" \
             --create-namespace \
             --set image.repository=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_APP_REPO \
-            --set image.tag=${IMAGE_TAG:-${GITHUB_SHA}}
+            --set image.tag="$IMAGE_TAG"
