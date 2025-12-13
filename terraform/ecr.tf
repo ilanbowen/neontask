@@ -36,7 +36,7 @@ resource "aws_ecr_repository" "helm" {
   tags = {
     Name        = "${var.project_name}-helm"
     Environment = var.environment
-    Purpose     = "Helm charts (OCI format)"
+    Purpose     = "Helm charts OCI format"
   }
 }
 
