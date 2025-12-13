@@ -1,10 +1,8 @@
 # Default values for hello-world-app
-# This is a YAML-formatted file.
-
 replicaCount: 2
 
 image:
-  repository: your-registry/hello-world-app
+  repository: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/hello-world-app
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -17,10 +15,7 @@ serviceAccount:
   annotations: {}
   name: ""
 
-podAnnotations:
-  prometheus.io/scrape: "true"
-  prometheus.io/port: "8080"
-  prometheus.io/path: "/health"
+podAnnotations: {}
 
 podSecurityContext:
   runAsNonRoot: true
@@ -37,24 +32,18 @@ securityContext:
 service:
   type: ClusterIP
   port: 80
-  targetPort: 8080
-  annotations: {}
+  targetPort: 5000
 
 ingress:
-  enabled: true
-  className: "nginx"
-  annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  enabled: false
+  className: ""
+  annotations: {}
   hosts:
-    - host: hello-world.example.com
+    - host: chart-example.local
       paths:
         - path: /
           pathType: Prefix
-  tls:
-    - secretName: hello-world-tls
-      hosts:
-        - hello-world.example.com
+  tls: []
 
 resources:
   limits:
@@ -71,70 +60,37 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   targetMemoryUtilizationPercentage: 80
 
-livenessProbe:
-  httpGet:
-    path: /health
-    port: 8080
-  initialDelaySeconds: 30
-  periodSeconds: 10
-  timeoutSeconds: 5
-  failureThreshold: 3
-
-readinessProbe:
-  httpGet:
-    path: /health
-    port: 8080
-  initialDelaySeconds: 10
-  periodSeconds: 5
-  timeoutSeconds: 3
-  failureThreshold: 3
-
 nodeSelector: {}
 
 tolerations: []
 
-affinity:
-  podAntiAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
-                  - hello-world-app
-          topologyKey: kubernetes.io/hostname
+affinity: {}
 
 # Environment variables
 env:
   - name: ENVIRONMENT
     value: "production"
+  - name: PORT
+    value: "5000"
 
-# PostgreSQL configuration
-postgresql:
-  enabled: true
-  auth:
-    username: appuser
-    password: changeme123
-    database: appdb
-  primary:
-    persistence:
-      enabled: true
-      size: 8Gi
-    resources:
-      limits:
-        memory: 512Mi
-        cpu: 500m
-      requests:
-        memory: 256Mi
-        cpu: 250m
+# Liveness probe configuration
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 3
 
-# Database connection settings (used by the app)
-database:
-  host: ""  # Will be set to postgresql service name if postgresql.enabled is true
-  port: 5432
-  name: appdb
-  existingSecret: ""  # Use existing secret for credentials
-  existingSecretUserKey: "username"
-  existingSecretPasswordKey: "password"
+# Readiness probe configuration
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  successThreshold: 1
+  failureThreshold: 3

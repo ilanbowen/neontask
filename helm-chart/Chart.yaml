@@ -1,18 +1,15 @@
 apiVersion: v2
 name: hello-world-app
-description: A production-ready Hello World application with PostgreSQL
+description: A Helm chart for Hello World Flask application
 type: application
 version: 1.0.0
 appVersion: "1.0.0"
 keywords:
-  - hello-world
   - flask
-  - postgresql
+  - kubernetes
+  - hello-world
 maintainers:
   - name: DevOps Team
-    email: devops@example.com
-dependencies:
-  - name: postgresql
-    version: 13.2.24
-    repository: https://charts.bitnami.com/bitnami
-    condition: postgresql.enabled
+home: https://github.com/your-org/your-repo
+sources:
+  - https://github.com/your-org/your-repo

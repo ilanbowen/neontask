@@ -58,14 +58,3 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
-
-{{/*
-Database host
-*/}}
-{{- define "hello-world-app.databaseHost" -}}
-{{- if .Values.postgresql.enabled }}
-{{- printf "%s-postgresql" .Release.Name }}
-{{- else }}
-{{- .Values.database.host }}
-{{- end }}
-{{- end }}
