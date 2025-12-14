@@ -129,8 +129,10 @@ jobs:
           CHART_VERSION: ${{ steps.chart-version.outputs.version }}
         run: |
           # Push to ECR OCI registry
-          helm push ${HELM_CHART_NAME}-${CHART_VERSION}.tgz \
-            oci://${REGISTRY}/hello-world-helm
+          echo "Registry is: ${REGISTRY}"
+          helm push ${HELM_CHART_NAME}-${CHART_VERSION}.tgz oci://${REGISTRY}/hello-world-helm
+
+        
 
       - name: Chart summary
         env:
