@@ -6,14 +6,14 @@ on:
       - main
     paths:
       - 'app/**'
-      - 'helm-chart/**'
+      - 'hello-world-helm/**'
       - '.github/workflows/app-deploy.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'app/**'
-      - 'helm-chart/**'
+      - 'hello-world-helm/**'
   workflow_dispatch:
 
 env:
@@ -114,13 +114,13 @@ jobs:
       - name: Get Chart Version
         id: chart-version
         run: |
-          CHART_VERSION=$(grep '^version:' helm-chart/Chart.yaml | awk '{print $2}')
+          CHART_VERSION=$(grep '^version:' hello-world-helm/Chart.yaml | awk '{print $2}')
           echo "version=$CHART_VERSION" >> $GITHUB_OUTPUT
           echo "Chart version: $CHART_VERSION"
 
       - name: Package Helm Chart
         run: |
-          helm package helm-chart/
+          helm package hello-world-helm/
           ls -lh *.tgz
           
       - name: Push Helm Chart to ECR (OCI)
@@ -129,7 +129,6 @@ jobs:
           CHART_VERSION: ${{ steps.chart-version.outputs.version }}
         run: |
           # Push to ECR OCI registry
-          echo "Registry is: ${REGISTRY}"
           helm push ${HELM_CHART_NAME}-${CHART_VERSION}.tgz oci://${REGISTRY}/hello-world-helm
 
         
@@ -189,7 +188,7 @@ jobs:
           
           # Deploy using local Helm chart
           helm upgrade --install ${{ env.HELM_CHART_NAME }} \
-            ./helm-chart \
+            ./hello-world-helm \
             --set image.repository=${REGISTRY}/${ECR_REPOSITORY} \
             --set image.tag=${IMAGE_TAG} \
             --set image.pullPolicy=Always \
