@@ -20,7 +20,7 @@ env:
   AWS_REGION: eu-north-1
   EKS_CLUSTER_NAME: hello-world-eks
   ECR_REPOSITORY: hello-world-app
-  HELM_CHART_NAME: hello-world-app
+  HELM_CHART_NAME: hello-world-helm
 
 permissions:
   id-token: write
@@ -129,7 +129,7 @@ jobs:
           CHART_VERSION: ${{ steps.chart-version.outputs.version }}
         run: |
           # Push to ECR OCI registry
-          helm push ${HELM_CHART_NAME}-${CHART_VERSION}.tgz oci://${REGISTRY}/hello-world-helm
+          helm push ${HELM_CHART_NAME}-${CHART_VERSION}.tgz oci://${REGISTRY}
 
         
 
