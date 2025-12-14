@@ -1,8 +1,9 @@
 name: Build, Push, and Deploy Hello World
 
 on:
-  push:
-    branches: [ "main" ]
+  #push:
+  #  branches: [ "main" ]
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
 
 env:
   AWS_REGION: eu-north-1
