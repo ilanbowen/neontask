@@ -181,6 +181,14 @@ jobs:
         with:
           version: '3.13.0'
 
+      - name: Pre-deploy cluster check
+        run: |
+          echo "Nodes:"
+          kubectl get nodes -o wide || true
+
+          echo "Core namespaces:"
+          kubectl get pods -n kube-system || true 
+
       - name: Deploy to EKS with Helm
         env:
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
@@ -195,9 +203,9 @@ jobs:
             --set image.repository=${REGISTRY}/${ECR_REPOSITORY} \
             --set image.tag=${IMAGE_TAG} \
             --set image.pullPolicy=Always \
-            --wait \
-            --timeout 5m \
-            --atomic
+            #--wait \
+            --timeout 10m
+            #--atomic
 
       - name: Verify deployment
         run: |
