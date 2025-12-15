@@ -148,6 +148,8 @@ jobs:
     needs: [build-and-push, package-helm]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment: production  # Add environment protection if needed
+    env:
+      KUBECONFIG: /tmp/kubeconfig    
     
     steps:
       - name: Checkout code
@@ -165,9 +167,13 @@ jobs:
 
       - name: Update kubeconfig
         run: |
+          mkdir -p "$(dirname "$KUBECONFIG")"
           aws eks update-kubeconfig \
             --name ${{ env.EKS_CLUSTER_NAME }} \
             --region ${{ env.AWS_REGION }}
+            --kubeconfig "${KUBECONFIG}"
+          echo "Using kubeconfig at: $KUBECONFIG"
+          kubectl config get-contexts || true
           
           # Verify connection
           kubectl cluster-info
