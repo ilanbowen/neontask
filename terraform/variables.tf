@@ -106,3 +106,9 @@ variable "rds_password" {
   sensitive   = true
   default     = "changeme123"
 }
+
+variable "github_runner_token" {
+  type        = string
+  description = "GitHub self-hosted runner registration token"
+  sensitive   = true
+}

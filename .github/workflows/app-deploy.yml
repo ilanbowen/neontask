@@ -29,7 +29,7 @@ permissions:
 jobs:
   build-and-push:
     name: Build and Push Docker Image
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, eks-runner]
     outputs:
       image-tag: ${{ steps.meta.outputs.version }}
       image-digest: ${{ steps.build.outputs.digest }}
@@ -87,7 +87,7 @@ jobs:
 
   package-helm:
     name: Package Helm Chart
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, eks-runner]
     needs: build-and-push
     outputs:
       chart-version: ${{ steps.chart-version.outputs.version }}
@@ -144,7 +144,7 @@ jobs:
 
   deploy-to-eks:
     name: Deploy to EKS
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, eks-runner]
     needs: [build-and-push, package-helm]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production  # Add environment protection if needed
