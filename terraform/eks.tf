@@ -9,6 +9,19 @@ module "eks" {
   subnet_ids                     = module.vpc.private_subnets
   enable_irsa = true
 
+  
+  # tell the module to create and manage aws-auth
+  create_aws_auth_configmap = true
+  manage_aws_auth_configmap = true
+  
+  aws_auth_roles = [
+    {
+      rolearn  = var.ci_iam_role_arn
+      username = "github-ci"
+      groups   = ["system:masters"]   # cluster-admin; OK for this project
+    }
+  ]
+
   # Encryption configuration
   cluster_encryption_config = {
     resources        = ["secrets"]
@@ -130,3 +143,5 @@ module "ebs_csi_irsa_role" {
     }
   }
 }
+
+

@@ -112,3 +112,9 @@ variable "github_runner_token" {
   description = "GitHub self-hosted runner registration token"
   sensitive   = true
 }
+
+variable "ci_iam_role_arn" {
+  type        = string
+  description = "IAM role ARN used by GitHub Actions to deploy to EKS"
+}
+
