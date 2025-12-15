@@ -168,10 +168,7 @@ jobs:
       - name: Update kubeconfig
         run: |
           mkdir -p "$(dirname "$KUBECONFIG")"
-          aws eks update-kubeconfig \
-            --name ${{ env.EKS_CLUSTER_NAME }} \
-            --region ${{ env.AWS_REGION }}
-            --kubeconfig "${KUBECONFIG}"
+          aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION" --kubeconfig "$KUBECONFIG"
           echo "Using kubeconfig at: $KUBECONFIG"
           kubectl config get-contexts || true
           
