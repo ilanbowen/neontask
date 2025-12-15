@@ -209,16 +209,29 @@ jobs:
             #--atomic
 
       - name: Verify deployment
+        env:
+          APP_NAME: ${{ env.HELM_CHART_NAME }}
         run: |
           echo "Verifying deployment..."
-          
-          # Wait for rollout to complete
-          kubectl rollout status deployment/${{ env.HELM_CHART_NAME }} --timeout=5m
-          
-          # Get deployment info
-          kubectl get deployment ${{ env.HELM_CHART_NAME }}
-          kubectl get pods -l app.kubernetes.io/name=${{ env.HELM_CHART_NAME }}
-          kubectl get svc -l app.kubernetes.io/name=${{ env.HELM_CHART_NAME }}
+
+          set +e
+          kubectl rollout status deployment/${APP_NAME} --timeout=5m
+          ROLL_STATUS=$?
+          set -e
+
+          echo "Rollout exit code: $ROLL_STATUS"
+
+          echo "Deployments:"
+          kubectl get deploy
+
+          echo "Pods:"
+          kubectl get pods -o wide
+
+          echo "Events (last 50):"
+          kubectl get events --sort-by=.lastTimestamp | tail -n 50
+
+          exit $ROLL_STATUS
+
 
       - name: Get application URL
         id: app-url
