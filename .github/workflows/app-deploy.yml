@@ -146,7 +146,7 @@ jobs:
     name: Deploy to EKS
     runs-on: [self-hosted, eks-runner]
     needs: [build-and-push, package-helm]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment: production  # Add environment protection if needed
     
     steps:

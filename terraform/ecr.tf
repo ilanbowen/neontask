@@ -22,7 +22,7 @@ resource "aws_ecr_repository" "app" {
 
 # ECR Repository for Helm charts (OCI format)
 resource "aws_ecr_repository" "helm" {
-  name                 = "${var.project_name}-helm/${var.project_name}-app"
+  name                 = "${var.project_name}-helm"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
