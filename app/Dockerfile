@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Install dependencies
 COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Final stage
 FROM python:3.11-slim
@@ -13,7 +13,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copy dependencies from builder
-COPY --from=builder /root/.local /root/.local
+COPY --from=builder /usr/local /usr/local
 
 # Copy application code
 COPY . .
@@ -23,9 +23,6 @@ RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
 
 USER appuser
-
-# Make sure scripts in .local are usable
-ENV PATH=/root/.local/bin:$PATH
 
 EXPOSE 5000
 
