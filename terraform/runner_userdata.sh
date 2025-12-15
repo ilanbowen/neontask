@@ -2,10 +2,24 @@
 set -xe
 
 # -----------------------------
-# System basics
+# System basics (Ubuntu)
 # -----------------------------
-yum update -y
-yum install -y tar unzip git curl jq
+apt-get update -y
+DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+apt-get install -y \
+  curl \
+  unzip \
+  git \
+  jq \
+  ca-certificates \
+  apt-transport-https \
+  lsb-release \
+  gnupg \
+  docker.io
+
+systemctl enable docker
+systemctl start docker
+usermod -aG docker ubuntu || true
 
 # -----------------------------
 # Install AWS CLI v2
@@ -24,39 +38,25 @@ curl -LO "https://dl.k8s.io/release/$${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
 install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
 # -----------------------------
-# Install Helm (latest stable)
+# Install Helm (latest)
 # -----------------------------
 curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
 # -----------------------------
-# OPTIONAL: Install Docker (useful for some CI tasks)
-# -----------------------------
-yum install -y docker
-systemctl enable docker
-systemctl start docker
-usermod -aG docker ec2-user || true
-
-# -----------------------------
-# Ensure SSM Agent is running
-# -----------------------------
-systemctl enable amazon-ssm-agent || true
-systemctl restart amazon-ssm-agent || true
-
-# -----------------------------
-# Set up GitHub Actions runner
+# GitHub Actions runner setup
 # -----------------------------
 RUNNER_ROOT="/opt/github-runner"
 mkdir -p "$RUNNER_ROOT"
-chown ec2-user:ec2-user "$RUNNER_ROOT"
+chown ubuntu:ubuntu "$RUNNER_ROOT"
 
-# Run the rest as ec2-user
-su - ec2-user << 'EOF'
+# Run the rest as ubuntu user
+su - ubuntu << 'EOF'
 set -xe
 
 RUNNER_ROOT="/opt/github-runner"
 cd "$RUNNER_ROOT"
 
-# Download runner
+# Download GitHub Actions runner
 curl -L -o actions-runner-linux-x64.tar.gz \
   "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz"
 
