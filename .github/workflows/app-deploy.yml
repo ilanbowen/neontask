@@ -203,10 +203,8 @@ jobs:
             --set image.repository=${REGISTRY}/${ECR_REPOSITORY} \
             --set image.tag=${IMAGE_TAG} \
             --set image.pullPolicy=Always \
+            --set databaseUrl="${DATABASE_URL}" \
             --timeout 10m
-            #--wait \
-            
-            #--atomic
 
       - name: Verify deployment
         env:
