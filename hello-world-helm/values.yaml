@@ -98,4 +98,5 @@ readinessProbe:
   successThreshold: 1
   failureThreshold: 3
 
-databaseUrl: ""
+database:
+  url: ""  # MUST be set by CI

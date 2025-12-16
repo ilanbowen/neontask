@@ -200,10 +200,11 @@ jobs:
           # Deploy using local Helm chart
           helm upgrade --install ${{ env.HELM_CHART_NAME }} \
             ./hello-world-helm \
+            --namespace default \
             --set image.repository=${REGISTRY}/${ECR_REPOSITORY} \
             --set image.tag=${IMAGE_TAG} \
             --set image.pullPolicy=Always \
-            --set databaseUrl="${DATABASE_URL}" \
+            --set database.url="${{ secrets.DATABASE_URL }}" \
             --timeout 10m
 
       - name: Verify deployment
