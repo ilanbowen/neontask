@@ -18,25 +18,28 @@ resource "aws_security_group" "rds" {
   name_prefix = "${var.project_name}-rds-"
   vpc_id      = module.vpc.vpc_id
 
-  ingress {
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-    description = "PostgreSQL access from VPC"
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow all outbound traffic"
   }
 
   tags = {
     Name = "${var.project_name}-rds-sg"
   }
+}
+
+resource "aws_security_group_rule" "rds_from_eks_nodes" {
+  count = var.enable_rds ? 1 : 0
+
+  type                     = "ingress"
+  security_group_id        = aws_security_group.rds[0].id
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  source_security_group_id = module.eks.node_security_group_id
+  description              = "PostgreSQL from EKS nodes"
 }
 
 resource "aws_db_instance" "postgres" {
@@ -46,6 +49,7 @@ resource "aws_db_instance" "postgres" {
   engine         = "postgres"
   engine_version = "15.4"
   instance_class = var.rds_instance_class
+  publicly_accessible = false
 
   allocated_storage     = var.rds_allocated_storage
   max_allocated_storage = var.rds_allocated_storage * 2
@@ -63,13 +67,13 @@ resource "aws_db_instance" "postgres" {
   backup_window           = "03:00-04:00"
   maintenance_window      = "mon:04:00-mon:05:00"
 
-  skip_final_snapshot       = var.environment == "dev" ? true : false
-  final_snapshot_identifier = var.environment == "dev" ? null : "${var.project_name}-final-snapshot-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
+  skip_final_snapshot       = var.environment == "dev"
+  deletion_protection       = var.environment == "prod"
 
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
-  deletion_protection             = var.environment == "prod" ? true : false
 
   tags = {
     Name = "${var.project_name}-db"
   }
 }
+
