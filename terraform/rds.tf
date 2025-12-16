@@ -47,7 +47,7 @@ resource "aws_db_instance" "postgres" {
 
   identifier     = "${var.project_name}-db"
   engine         = "postgres"
-  engine_version = "15.4"
+  engine_version = "15"
   instance_class = var.rds_instance_class
   publicly_accessible = false
 
