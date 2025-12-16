@@ -1,225 +1,200 @@
-from flask import Flask, jsonify, request, render_template_string, redirect, url_for
-import os, socket
-from datetime import datetime
-
+from flask import Flask, request, jsonify, render_template_string, redirect, url_for
+import os
+import socket
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
+# ------------------------------------------------------------------------------
+# App setup
+# ------------------------------------------------------------------------------
 app = Flask(__name__)
 
-APP_VERSION = "1.1.0"
-
-# DB connection string: postgresql+psycopg2://user:pass@host:5432/dbname
+HOSTNAME = socket.gethostname()
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "development")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-def get_engine():
-    if not DATABASE_URL:
-        return None
-    return create_engine(DATABASE_URL, pool_pre_ping=True, pool_size=5, max_overflow=5)
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL environment variable is required")
 
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=5,
+)
+
+# ------------------------------------------------------------------------------
+# Database initialization (Flask 3 compatible)
+# ------------------------------------------------------------------------------
 def init_db():
-    eng = get_engine()
-    if not eng:
-        return
-    with eng.begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS messages (
-              id SERIAL PRIMARY KEY,
-              name TEXT NOT NULL,
-              message TEXT NOT NULL,
-              created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            );
-        """))
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS messages (
+                    id SERIAL PRIMARY KEY,
+                    content TEXT NOT NULL,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """))
+    except SQLAlchemyError as e:
+        # Fail fast so Kubernetes restarts if DB is unreachable
+        raise RuntimeError(f"Database initialization failed: {e}")
 
-@app.before_first_request
-def _startup():
+# Initialize DB on startup
+with app.app_context():
     init_db()
 
-PAGE = """
-<!doctype html>
-<html lang="en">
+# ------------------------------------------------------------------------------
+# UI Template (simple but nicer than JSON)
+# ------------------------------------------------------------------------------
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html>
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Hello World on EKS</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Hello World on EKS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 700px;
+            margin: 40px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        .meta {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        form {
+            margin-bottom: 30px;
+        }
+        textarea {
+            width: 100%;
+            height: 80px;
+            padding: 10px;
+            font-size: 1em;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 16px;
+            font-size: 1em;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .message {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        .timestamp {
+            font-size: 0.8em;
+            color: #999;
+        }
+    </style>
 </head>
-<body class="bg-light">
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container">
-      <span class="navbar-brand">Hello World on Kubernetes</span>
-      <span class="navbar-text text-secondary small">
-        v{{ app_version }} • {{ hostname }} • {{ environment }}
-      </span>
+<body>
+<div class="container">
+    <h1>Hello from Flask on Kubernetes 🚀</h1>
+    <div class="meta">
+        Environment: <strong>{{ environment }}</strong><br>
+        Hostname: <strong>{{ hostname }}</strong>
     </div>
-  </nav>
 
-  <main class="container py-4">
-    <div class="row g-4">
-      <div class="col-lg-6">
-        <div class="card shadow-sm">
-          <div class="card-body">
-            <h5 class="card-title">Leave a message</h5>
-            <p class="card-text text-muted">Stored in RDS (PostgreSQL) and shown below.</p>
+    <form method="POST" action="/message">
+        <textarea name="content" placeholder="Write a message..." required></textarea>
+        <button type="submit">Save message</button>
+    </form>
 
-            {% if db_missing %}
-              <div class="alert alert-warning">
-                DATABASE_URL is not set. UI works, but nothing will be stored.
-              </div>
-            {% endif %}
-
-            <form method="post" action="{{ url_for('create_message') }}">
-              <div class="mb-3">
-                <label class="form-label">Your name</label>
-                <input class="form-control" name="name" required maxlength="100" />
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Message</label>
-                <textarea class="form-control" name="message" required maxlength="1000" rows="3"></textarea>
-              </div>
-              <button class="btn btn-primary">Save</button>
-              <a class="btn btn-outline-secondary" href="{{ url_for('index') }}">Refresh</a>
-            </form>
-          </div>
+    <h2>Messages</h2>
+    {% for msg in messages %}
+        <div class="message">
+            {{ msg.content }}
+            <div class="timestamp">{{ msg.created_at }}</div>
         </div>
-
-        <div class="mt-3 small text-muted">
-          <div><b>Health:</b> <a href="/health">/health</a> • <a href="/ready">/ready</a> • <a href="/info">/info</a></div>
-          <div><b>API:</b> <a href="/api/messages">/api/messages</a></div>
-        </div>
-      </div>
-
-      <div class="col-lg-6">
-        <div class="card shadow-sm">
-          <div class="card-body">
-            <h5 class="card-title">Recent messages</h5>
-            <div class="table-responsive">
-              <table class="table table-sm align-middle">
-                <thead>
-                  <tr>
-                    <th>When</th><th>Name</th><th>Message</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for m in messages %}
-                    <tr>
-                      <td class="text-nowrap">{{ m["created_at"] }}</td>
-                      <td class="text-nowrap">{{ m["name"] }}</td>
-                      <td style="white-space: pre-wrap;">{{ m["message"] }}</td>
-                    </tr>
-                  {% endfor %}
-                  {% if messages|length == 0 %}
-                    <tr><td colspan="3" class="text-muted">No messages yet.</td></tr>
-                  {% endif %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {% if error %}
-          <div class="alert alert-danger mt-3">{{ error }}</div>
-        {% endif %}
-      </div>
-    </div>
-  </main>
+    {% else %}
+        <p>No messages yet.</p>
+    {% endfor %}
+</div>
 </body>
 </html>
 """
 
+# ------------------------------------------------------------------------------
+# Routes
+# ------------------------------------------------------------------------------
 @app.route("/", methods=["GET"])
 def index():
-    hostname = socket.gethostname()
-    environment = os.environ.get("ENVIRONMENT", "development")
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("SELECT content, created_at FROM messages ORDER BY created_at DESC LIMIT 20")
+        ).fetchall()
 
-    messages = []
-    error = None
-    db_missing = not bool(DATABASE_URL)
-
-    try:
-        eng = get_engine()
-        if eng:
-            with eng.connect() as conn:
-                rows = conn.execute(text("""
-                    SELECT name, message, created_at
-                    FROM messages
-                    ORDER BY created_at DESC
-                    LIMIT 25
-                """)).mappings().all()
-                messages = [
-                    {
-                        "name": r["name"],
-                        "message": r["message"],
-                        "created_at": r["created_at"].strftime("%Y-%m-%d %H:%M:%S %Z") if r["created_at"] else ""
-                    }
-                    for r in rows
-                ]
-    except SQLAlchemyError as e:
-        error = f"DB error: {e.__class__.__name__}"
+    messages = [
+        {"content": row.content, "created_at": row.created_at}
+        for row in rows
+    ]
 
     return render_template_string(
-        PAGE,
-        app_version=APP_VERSION,
-        hostname=hostname,
-        environment=environment,
+        HTML_TEMPLATE,
         messages=messages,
-        db_missing=db_missing,
-        error=error,
+        hostname=HOSTNAME,
+        environment=ENVIRONMENT,
     )
 
 @app.route("/message", methods=["POST"])
-def create_message():
-    name = request.form.get("name", "").strip()
-    message = request.form.get("message", "").strip()
-
-    if not name or not message:
-        return redirect(url_for("index"))
-
-    eng = get_engine()
-    if eng:
-        with eng.begin() as conn:
+def add_message():
+    content = request.form.get("content", "").strip()
+    if content:
+        with engine.begin() as conn:
             conn.execute(
-                text("INSERT INTO messages(name, message) VALUES (:name, :message)"),
-                {"name": name[:100], "message": message[:1000]},
+                text("INSERT INTO messages (content) VALUES (:content)"),
+                {"content": content},
             )
-
     return redirect(url_for("index"))
 
 @app.route("/api/messages", methods=["GET"])
 def api_messages():
-    eng = get_engine()
-    if not eng:
-        return jsonify({"error": "DATABASE_URL not set"}), 400
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("SELECT id, content, created_at FROM messages ORDER BY created_at DESC LIMIT 50")
+        ).fetchall()
 
-    with eng.connect() as conn:
-        rows = conn.execute(text("""
-            SELECT id, name, message, created_at
-            FROM messages
-            ORDER BY created_at DESC
-            LIMIT 100
-        """)).mappings().all()
-
-    return jsonify({"items": [dict(r) for r in rows]})
+    return jsonify([
+        {"id": r.id, "content": r.content, "created_at": r.created_at.isoformat()}
+        for r in rows
+    ])
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "healthy", "service": "hello-world-app"}), 200
+    return jsonify(status="healthy", service="hello-world-app"), 200
 
 @app.route("/ready")
 def ready():
-    # Optional DB check here if you want readiness to depend on DB connectivity
-    return jsonify({"status": "ready", "service": "hello-world-app"}), 200
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return jsonify(status="ready", service="hello-world-app"), 200
+    except Exception:
+        return jsonify(status="not ready"), 500
 
-@app.route("/info")
-def info():
-    import sys
-    return jsonify({
-        "hostname": socket.gethostname(),
-        "environment": os.environ.get("ENVIRONMENT", "development"),
-        "python_version": sys.version,
-        "app_version": APP_VERSION
-    })
-
+# ------------------------------------------------------------------------------
+# Local dev fallback (Gunicorn ignores this)
+# ------------------------------------------------------------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port)
