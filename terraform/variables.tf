@@ -73,7 +73,7 @@ variable "node_group_desired_size" {
 variable "enable_rds" {
   description = "Enable RDS PostgreSQL database"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "rds_instance_class" {
