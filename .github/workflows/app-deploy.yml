@@ -197,6 +197,7 @@ jobs:
           echo "Deploying application to EKS..."
           echo "Image: ${REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
           
+          set +e
           # Deploy using local Helm chart
           helm upgrade --install ${{ env.HELM_CHART_NAME }} \
             ./hello-world-helm \
@@ -207,7 +208,10 @@ jobs:
             --set-string database.url='${{ secrets.DATABASE_URL }}' \
             --wait \
             --timeout 10m
-          || {
+          rc=$?
+          set -e
+          
+          if [ $rc -ne 0 ]; then
             echo "=== HELM STATUS ==="
             helm status hello-world-helm -n default || true
 
@@ -215,17 +219,19 @@ jobs:
             kubectl get deploy,rs,po,svc,ing -n default -l app.kubernetes.io/instance=hello-world-helm -o wide || true
 
             echo "=== EVENTS ==="
-            kubectl get events -n default --sort-by=.lastTimestamp | tail -n 80 || true
+            kubectl get events -n default --sort-by=.lastTimestamp | tail -n 120 || true
 
             echo "=== POD DESCRIBE ==="
-            POD=$(kubectl get pod -n default -l app.kubernetes.io/instance=hello-world-helm -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-            [ -n "${POD}" ] && kubectl describe pod -n default "${POD}" | tail -n 120 || true
+            POD=$(kubectl get pod -n default -l app.kubernetes.io/instance=hello-world-helm \
+              --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || true)
+            [ -n "$POD" ] && kubectl describe pod -n default "$POD" | tail -n 200 || true
 
             echo "=== POD LOGS (previous) ==="
-            [ -n "${POD}" ] && kubectl logs -n default "${POD}" --previous --tail=200 || true
+            [ -n "$POD" ] && kubectl logs -n default "$POD" --previous --tail=300 || true
 
-            exit 1
-          }
+            exit $rc
+          fi
+
 
       - name: Verify deployment
         env:
