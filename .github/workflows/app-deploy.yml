@@ -197,6 +197,9 @@ jobs:
           echo "Deploying application to EKS..."
           echo "Image: ${REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
           
+          export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+          echo "DATABASE_URL length: ${#DATABASE_URL}"   # safe debug (no value printed)
+
           set +e
           # Deploy using local Helm chart
           helm upgrade --install ${{ env.HELM_CHART_NAME }} \
@@ -205,7 +208,7 @@ jobs:
             --set image.repository=${REGISTRY}/${ECR_REPOSITORY} \
             --set image.tag=${IMAGE_TAG} \
             --set image.pullPolicy=Always \
-            --set-string database.url='${{ secrets.DATABASE_URL }}' \
+            --set-string database.url="${DATABASE_URL}" \
             --wait \
             --timeout 10m
           rc=$?
