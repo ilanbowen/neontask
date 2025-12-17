@@ -1,8 +1,7 @@
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, render_template_string
 import os
 import socket
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError
 
 app = Flask(__name__)
 
@@ -10,139 +9,101 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "production")
 HOSTNAME = socket.gethostname()
 
-# ---- HARD REQUIREMENT ----
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL environment variable is required")
 
-# ---- DB INIT (fail fast) ----
-try:
-    engine = create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=5,
-    )
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=5,
+)
 
-    with engine.begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS messages (
-                id SERIAL PRIMARY KEY,
-                content TEXT NOT NULL,
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            )
-        """))
-except Exception as e:
-    raise RuntimeError(f"Database initialization failed: {e}")
+with engine.begin() as conn:
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS messages (
+            id SERIAL PRIMARY KEY,
+            content TEXT NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+    """))
 
-@app.route("/")
-def index():
-    html = f"""
+PAGE = """
 <!doctype html>
-<html lang="en">
+<html>
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Hello World DB Demo</title>
+  <title>Hello World + DB</title>
   <style>
-    body {{ font-family: system-ui, Arial, sans-serif; margin: 24px; max-width: 800px; }}
-    .card {{ border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin-bottom: 16px; }}
-    input, button {{ font-size: 16px; padding: 10px; }}
-    input {{ width: 100%; box-sizing: border-box; margin: 8px 0; }}
-    button {{ cursor: pointer; }}
-    .meta {{ color: #666; font-size: 14px; }}
-    .row {{ display: flex; gap: 12px; }}
-    .row > * {{ flex: 1; }}
-    ul {{ padding-left: 18px; }}
-    li {{ margin: 6px 0; }}
-    .ok {{ color: #0a7; }}
-    .err {{ color: #c00; white-space: pre-wrap; }}
+    body { font-family: system-ui, Arial; margin: 24px; max-width: 900px; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; margin: 12px 0; }
+    input, button { padding: 10px; font-size: 16px; }
+    input { width: 70%; }
+    button { cursor: pointer; }
+    ul { padding-left: 18px; }
+    .muted { color: #666; font-size: 14px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
   </style>
 </head>
 <body>
-  <h1>Hello World + Postgres (EKS Demo)</h1>
-  <p class="meta">
-    Environment: <b>{ENVIRONMENT}</b> |
-    Pod: <b>{HOSTNAME}</b>
+  <h1>Hello World + Database</h1>
+  <p class="muted">
+    Environment: <b>{{env}}</b> · Pod: <b>{{host}}</b>
   </p>
 
   <div class="card">
-    <h2>1) Save a message</h2>
-    <p>Type something and click <b>Save</b>. It will be stored in the database.</p>
-    <input id="msg" placeholder="e.g. hello from the UI"/>
+    <h2>Save a message</h2>
     <div class="row">
-      <button onclick="saveMsg()">Save</button>
-      <button onclick="loadMsgs()">Refresh list</button>
+      <input id="msg" placeholder="Type something..." />
+      <button onclick="save()">Save</button>
+      <button onclick="load()">Refresh</button>
     </div>
-    <p id="status"></p>
+    <p id="status" class="muted"></p>
   </div>
 
   <div class="card">
-    <h2>2) Messages in database</h2>
-    <ul id="list"><li class="meta">Loading...</li></ul>
+    <h2>Messages</h2>
+    <ul id="list"></ul>
   </div>
 
 <script>
-async function loadMsgs() {{
+async function load() {
+  const r = await fetch("/messages");
+  const data = await r.json();
   const list = document.getElementById("list");
-  list.innerHTML = '<li class="meta">Loading...</li>';
-  try {{
-    const res = await fetch("/messages");
-    const data = await res.json();
-    if (!Array.isArray(data)) throw new Error("Unexpected response");
-    if (data.length === 0) {{
-      list.innerHTML = '<li class="meta">No messages yet. Add one above.</li>';
-      return;
-    }}
-    list.innerHTML = "";
-    for (const item of data) {{
-      const li = document.createElement("li");
-      const ts = item.created_at ? new Date(item.created_at).toLocaleString() : "";
-      li.innerHTML = `<b>#${{item.id}}</b> ${{item.content}} <span class="meta">(${{ts}})</span>`;
-      list.appendChild(li);
-    }}
-  }} catch (e) {{
-    list.innerHTML = `<li class="err">Failed to load: ${{e}}</li>`;
-  }}
-}}
+  list.innerHTML = "";
+  for (const m of data) {
+    const li = document.createElement("li");
+    li.textContent = `${m.id}: ${m.content} (${m.created_at})`;
+    list.appendChild(li);
+  }
+}
 
-async function saveMsg() {{
-  const input = document.getElementById("msg");
-  const status = document.getElementById("status");
-  const content = input.value.trim();
-  if (!content) {{
-    status.className = "err";
-    status.textContent = "Please type a message first.";
-    return;
-  }}
-  status.className = "meta";
-  status.textContent = "Saving...";
-  try {{
-    const res = await fetch("/message", {{
-      method: "POST",
-      headers: {{ "Content-Type": "application/json" }},
-      body: JSON.stringify({{ content }})
-    }});
-    const data = await res.json();
-    if (!res.ok) {{
-      throw new Error(JSON.stringify(data));
-    }}
-    input.value = "";
-    status.className = "ok";
-    status.textContent = "Saved!";
-    await loadMsgs();
-  }} catch (e) {{
-    status.className = "err";
-    status.textContent = "Save failed: " + e;
-  }}
-}}
+async function save() {
+  const v = document.getElementById("msg").value.trim();
+  if (!v) return;
+  document.getElementById("status").textContent = "Saving...";
+  const r = await fetch("/message", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({content: v})
+  });
+  const data = await r.json();
+  document.getElementById("status").textContent = r.ok ? "Saved ✅" : ("Error: " + JSON.stringify(data));
+  document.getElementById("msg").value = "";
+  await load();
+}
 
-loadMsgs();
+load();
 </script>
 </body>
 </html>
 """
-    return Response(html, mimetype="text/html")
 
+@app.route("/")
+def index():
+    return render_template_string(PAGE, env=ENVIRONMENT, host=HOSTNAME)
 
 @app.route("/message", methods=["POST"])
 def add_message():
@@ -152,24 +113,15 @@ def add_message():
         return jsonify({"error": "content is required"}), 400
 
     with engine.begin() as conn:
-        result = conn.execute(
-            text("INSERT INTO messages (content) VALUES (:content) RETURNING id"),
-            {"content": content}
-            )
-        new_id = result.scalar_one()
-    return jsonify({"status": "saved", "id": new_id}), 201
+        conn.execute(text("INSERT INTO messages (content) VALUES (:content)"), {"content": content})
+
+    return jsonify({"status": "saved"}), 201
 
 @app.route("/messages")
 def list_messages():
     with engine.connect() as conn:
-        rows = conn.execute(
-            text("SELECT id, content, created_at FROM messages ORDER BY created_at DESC")
-        ).fetchall()
-
-    return jsonify([
-        {"id": r.id, "content": r.content, "created_at": r.created_at.isoformat()}
-        for r in rows
-    ])
+        rows = conn.execute(text("SELECT id, content, created_at FROM messages ORDER BY created_at DESC")).fetchall()
+    return jsonify([{"id": r.id, "content": r.content, "created_at": r.created_at.isoformat()} for r in rows])
 
 @app.route("/health")
 def health():
@@ -177,9 +129,6 @@ def health():
 
 @app.route("/ready")
 def ready():
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return jsonify(status="ready"), 200
-    except SQLAlchemyError as e:
-        return jsonify(status="not ready", error=str(e)), 500
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+    return jsonify(status="ready"), 200
