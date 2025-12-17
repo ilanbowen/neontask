@@ -204,9 +204,28 @@ jobs:
             --set image.repository=${REGISTRY}/${ECR_REPOSITORY} \
             --set image.tag=${IMAGE_TAG} \
             --set image.pullPolicy=Always \
-            --set database.url='${{ secrets.DATABASE_URL }}' \
+            --set-string database.url='${{ secrets.DATABASE_URL }}' \
             --wait \
             --timeout 10m
+          || {
+            echo "=== HELM STATUS ==="
+            helm status hello-world-helm -n default || true
+
+            echo "=== K8S RESOURCES ==="
+            kubectl get deploy,rs,po,svc,ing -n default -l app.kubernetes.io/instance=hello-world-helm -o wide || true
+
+            echo "=== EVENTS ==="
+            kubectl get events -n default --sort-by=.lastTimestamp | tail -n 80 || true
+
+            echo "=== POD DESCRIBE ==="
+            POD=$(kubectl get pod -n default -l app.kubernetes.io/instance=hello-world-helm -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+            [ -n "${POD}" ] && kubectl describe pod -n default "${POD}" | tail -n 120 || true
+
+            echo "=== POD LOGS (previous) ==="
+            [ -n "${POD}" ] && kubectl logs -n default "${POD}" --previous --tail=200 || true
+
+            exit 1
+          }
 
       - name: Verify deployment
         env:
