@@ -70,11 +70,6 @@ affinity: {}
 env:
   - name: ENVIRONMENT
     value: development
-  - name: DATABASE_URL
-    valueFrom:
-      secretKeyRef:
-        name: hello-world-db
-        key: DATABASE_URL    
 
 # Liveness probe configuration
 livenessProbe:
