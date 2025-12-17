@@ -69,7 +69,7 @@ affinity: {}
 # Environment variables
 env:
   - name: ENVIRONMENT
-    value: "development"
+    value: development
   - name: DATABASE_URL
     valueFrom:
       secretKeyRef:
