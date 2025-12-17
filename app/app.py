@@ -36,10 +36,13 @@ except Exception as e:
 
 @app.route("/")
 def index():
+    with engine.connect() as conn:
+        count = conn.execute(text("SELECT COUNT(*) FROM messages")).scalar_one()
     return jsonify({
-        "message": "Hello from Flask on Kubernetes",
+        "message": "Hello from Flask on Kubernetes (DB enabled)",
         "environment": ENVIRONMENT,
-        "hostname": HOSTNAME
+        "hostname": HOSTNAME,
+        "messages_in_db": count
     })
 
 @app.route("/message", methods=["POST"])
