@@ -27,9 +27,51 @@ permissions:
   contents: read
 
 jobs:
+  validate:
+    name: Validate (App + Helm)
+    runs-on: [self-hosted, eks-runner]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ---- App validations ----
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install app dependencies
+        working-directory: ./app
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Python sanity checks
+        working-directory: ./app
+        run: |
+          python -m compileall -q .
+          pytest -q || (echo "No tests found or tests failed" && exit 1)
+
+      # ---- Helm validations ----
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.13.0'
+
+      - name: Helm lint + render
+        run: |
+          helm lint ./hello-world-helm
+          helm template hello-world-helm ./hello-world-helm --namespace default > rendered.yaml
+          # Basic assertion that our DB secret is rendered
+          grep -n "kind: Secret" rendered.yaml >/dev/null
+
+  
   build-and-push:
     name: Build and Push Docker Image
     runs-on: [self-hosted, eks-runner]
+    needs: validate
     outputs:
       image-tag: ${{ steps.meta.outputs.version }}
       image-digest: ${{ steps.build.outputs.digest }}
@@ -196,7 +238,7 @@ jobs:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           echo "Deploying application to EKS..."
-          echo "Image: ${REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          echo "Image: ${REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
           
           export DATABASE_URL="${{ secrets.DATABASE_URL }}"
           echo "DATABASE_URL length: ${#DATABASE_URL}"   # safe debug (no value printed)
@@ -236,7 +278,6 @@ jobs:
             exit $rc
           fi
 
-
       - name: Verify deployment
         env:
           APP_NAME: ${{ env.HELM_CHART_NAME }}
@@ -261,6 +302,36 @@ jobs:
 
           exit $ROLL_STATUS
 
+      - name: Integration smoke test (HTTP + DB)
+        env:
+          SVC_NAME: ${{ env.HELM_CHART_NAME }}
+        run: |
+          set -euo pipefail
+
+          HOST=$(kubectl get svc -n default "$SVC_NAME" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          APP_URL="http://${HOST}"
+          echo "APP_URL=${APP_URL}"
+
+          # Wait until / returns 200
+          for i in {1..60}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "${APP_URL}/" || true)
+            if [ "$code" = "200" ]; then
+              break
+            fi
+            sleep 5
+          done
+
+          curl -fsS "${APP_URL}/" >/dev/null
+
+          MSG="ci-${GITHUB_SHA}-$(date -u +%s)"
+          curl -fsS -X POST "${APP_URL}/message" \
+            -H 'Content-Type: application/json' \
+            -d "{\"content\":\"${MSG}\"}" \
+            | grep -q '"status":"saved"'
+
+          curl -fsS "${APP_URL}/messages" | grep -q "${MSG}"
+
+          echo "Smoke test passed."
 
       - name: Get application URL
         id: app-url
@@ -285,7 +356,7 @@ jobs:
         run: |
           echo "### 🚀 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Image Tag:** \`${IMAGE_TAG}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** \`${GITHUB_SHA}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Chart Version:** \`${CHART_VERSION}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Application URL:** ${APP_URL}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
