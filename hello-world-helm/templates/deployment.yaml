@@ -43,7 +43,12 @@ spec:
           {{- toYaml .Values.readinessProbe | nindent 12 }}
         env:
           {{- with .Values.env }}
-          {{- toYaml . | nindent 10 }}
+          {{- range . }}
+          {{- if ne .name "DATABASE_URL" }}
+          - name: {{ .name | quote }}
+            value: {{ .value | quote }}
+          {{- end }}
+          {{- end }}
           {{- end }}
           - name: DATABASE_URL
             valueFrom:
