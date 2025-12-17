@@ -208,7 +208,7 @@ jobs:
             --set image.repository=${REGISTRY}/${ECR_REPOSITORY} \
             --set image.tag=${IMAGE_TAG} \
             --set image.pullPolicy=Always \
-            --set-string database.url="${{ secrets.DATABASE_URL }}"
+            --set-string database.url="${{ secrets.DATABASE_URL }}" \
             --wait \
             --timeout 10m
           rc=$?
