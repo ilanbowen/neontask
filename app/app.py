@@ -103,7 +103,7 @@ load();
 
 @app.route("/")
 def index():
-    return render_template_string(PAGE, env=ENVIRONMENT, host=HOSTNAME)
+    return render_template("index.html", environment=ENVIRONMENT, hostname=HOSTNAME)
 
 @app.route("/message", methods=["POST"])
 def add_message():

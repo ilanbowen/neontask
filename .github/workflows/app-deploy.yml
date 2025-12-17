@@ -68,8 +68,9 @@ jobs:
         with:
           context: ./app
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            125206151944.dkr.ecr.eu-north-1.amazonaws.com/hello-world-app:${{ github.sha }}
+            125206151944.dkr.ecr.eu-north-1.amazonaws.com/hello-world-app:main
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false  # Disable provenance for compatibility
@@ -206,7 +207,7 @@ jobs:
             ./hello-world-helm \
             --namespace default \
             --set image.repository=${REGISTRY}/${ECR_REPOSITORY} \
-            --set image.tag=${IMAGE_TAG} \
+            --set image.tag=${GITHUB_SHA} \
             --set image.pullPolicy=Always \
             --set-string database.url="${{ secrets.DATABASE_URL }}" \
             --wait \

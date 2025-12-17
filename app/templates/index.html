@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Hello World App</title>
+</head>
+<body>
+  <h1>Hello World App</h1>
+  <p>Environment: <b>{{ environment }}</b></p>
+  <p>Pod: <b>{{ hostname }}</b></p>
+
+  <h2>Add a message</h2>
+  <form id="msgForm">
+    <input id="content" placeholder="Type a message..." required />
+    <button type="submit">Save</button>
+  </form>
+
+  <h2>Messages</h2>
+  <button id="refreshBtn">Refresh</button>
+  <pre id="out"></pre>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
