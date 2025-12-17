@@ -62,8 +62,15 @@ jobs:
 
       - name: Helm lint + render
         run: |
-          helm lint ./hello-world-helm
-          helm template hello-world-helm ./hello-world-helm --namespace default > rendered.yaml
+          DUMMY_DB='postgresql://user:pass@localhost:5432/db'
+
+          helm lint ./hello-world-helm \
+            --set-string database.url="$DUMMY_DB"
+
+          helm template hello-world-helm ./hello-world-helm --namespace default \
+            --set-string database.url="$DUMMY_DB" \
+            > rendered.yaml
+
           # Basic assertion that our DB secret is rendered
           grep -n "kind: Secret" rendered.yaml >/dev/null
 
