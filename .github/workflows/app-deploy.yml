@@ -1,19 +1,19 @@
 name: Application CI/CD
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'app/**'
-      - 'hello-world-helm/**'
-      - '.github/workflows/app-deploy.yml'
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'app/**'
-      - 'hello-world-helm/**'
+  #push:
+  #  branches:
+  #    - main
+  #  paths:
+  #    - 'app/**'
+  #    - 'hello-world-helm/**'
+  #    - '.github/workflows/app-deploy.yml'
+  #pull_request:
+  #  branches:
+  #    - main
+  #  paths:
+  #    - 'app/**'
+  #    - 'hello-world-helm/**'
   workflow_dispatch:
 
 env:
@@ -90,7 +90,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -149,7 +149,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -208,7 +208,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -247,7 +247,7 @@ jobs:
           echo "Deploying application to EKS..."
           echo "Image: ${REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
           
-          export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+          export DATABASE_URL="${{ env.DATABASE_URL }}"
           echo "DATABASE_URL length: ${#DATABASE_URL}"   # safe debug (no value printed)
 
           set +e
@@ -258,7 +258,7 @@ jobs:
             --set image.repository=${REGISTRY}/${ECR_REPOSITORY} \
             --set image.tag=${GITHUB_SHA} \
             --set image.pullPolicy=Always \
-            --set-string database.url="${{ secrets.DATABASE_URL }}" \
+            --set-string database.url="${{ env.DATABASE_URL }}" \
             --wait \
             --timeout 10m
           rc=$?

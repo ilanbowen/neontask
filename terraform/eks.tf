@@ -8,6 +8,8 @@ module "eks" {
   vpc_id                         = module.vpc.vpc_id
   subnet_ids                     = module.vpc.private_subnets
   enable_irsa = true
+  cluster_endpoint_public_access  = true
+  cluster_endpoint_private_access = true
 
   
   # tell the module to create and manage aws-auth
@@ -16,7 +18,7 @@ module "eks" {
   
   aws_auth_roles = [
     {
-      rolearn  = var.ci_iam_role_arn
+      rolearn  = aws_iam_role.github_actions.arn
       username = "github-ci"
       groups   = ["system:masters"]   # cluster-admin; OK for this project
     }

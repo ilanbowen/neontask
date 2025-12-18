@@ -113,8 +113,26 @@ variable "github_runner_token" {
   sensitive   = true
 }
 
-variable "ci_iam_role_arn" {
+variable "github_org" {
+  type        = string
+  description = "GitHub organization name"
+  default     = "ilanbowen"
+}
+
+variable "github_repo" {
+  type        = string
+  description = "GitHub repository name"
+  default     = "neontask"
+}
+
+variable "gh_role_name" {
+  type        = string
+  description = "IAM role name for GitHub Actions OIDC"
+  default     = "GitHubActionsRole1"
+}
+
+/* variable "ci_iam_role_arn" {
   type        = string
   description = "IAM role ARN used by GitHub Actions to deploy to EKS"
-}
+} */
 

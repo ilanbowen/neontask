@@ -16,13 +16,13 @@ terraform {
     }
   }
 
-  backend "s3" {
+/*   backend "s3" {
     bucket         = "neon-ilanb-terraform-state"
     key            = "hello-world-app/terraform.tfstate"
     region         = "eu-north-1"
     encrypt        = true
     dynamodb_table = "neon-ilanb-terraform-state-lock"
-  }
+  } */
 }
 
 provider "aws" {
