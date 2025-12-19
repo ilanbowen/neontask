@@ -21,6 +21,7 @@ env:
   EKS_CLUSTER_NAME: hello-world-eks
   ECR_REPOSITORY: hello-world-app
   HELM_CHART_NAME: hello-world-helm
+  AWS_ROLE_ARN: arn:aws:iam::125206151944:role/GitHubActionsRole
 
 permissions:
   id-token: write
