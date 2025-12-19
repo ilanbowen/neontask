@@ -21,7 +21,7 @@ env:
   EKS_CLUSTER_NAME: hello-world-eks
   ECR_REPOSITORY: hello-world-app
   HELM_CHART_NAME: hello-world-helm
-  AWS_ROLE_ARN: "arn:aws:iam::125206151944:role/GitHubActionsRole1"
+  AWS_ROLE_ARN: arn:aws:iam::125206151944:role/GitHubActionsRole
 
 permissions:
   id-token: write
@@ -92,7 +92,6 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
-          #role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -152,7 +151,6 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
-          #role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -212,7 +210,6 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
-          #role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -252,7 +249,7 @@ jobs:
           echo "Image: ${REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
           
           export DATABASE_URL="${{ secrets.DATABASE_URL }}"
-          echo "DATABASE_URL length: ${#DATABASE_URL}"   # safe debug (no value printed)
+          echo "DATABASE_URL length: ${DATABASE_URL}"   # safe debug (no value printed)
 
           set +e
           # Deploy using local Helm chart
@@ -262,7 +259,7 @@ jobs:
             --set image.repository=${REGISTRY}/${ECR_REPOSITORY} \
             --set image.tag=${GITHUB_SHA} \
             --set image.pullPolicy=Always \
-            --set-string database.url="${{ secrets.DATABASE_URL }}" \
+            --set-string database.url=${DATABASE_URL} \
             --wait \
             --timeout 10m
           rc=$?
