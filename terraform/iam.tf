@@ -18,8 +18,7 @@ data "aws_iam_policy_document" "github_trust" {
 
     principals {
       type        = "Federated"
-      #identifiers = [aws_iam_openid_connect_provider.github.arn]
-      identifiers = ["arn:aws:iam::125206151944:oidc-provider/oidc.eks.eu-north-1.amazonaws.com/id/46E0D334422B82575FCE03B7970F62A9"]
+      identifiers = [aws_iam_openid_connect_provider.github.arn]
     }
 
     condition {
