@@ -59,6 +59,8 @@ resource "aws_db_instance" "postgres" {
   db_name  = var.rds_database_name
   username = var.rds_username
   password = var.rds_password
+  apply_immediately      = true   # ensures password change is applied now (otherwise waits for maintenance window)
+
 
   db_subnet_group_name   = aws_db_subnet_group.postgres[0].name
   vpc_security_group_ids = [aws_security_group.rds[0].id]
