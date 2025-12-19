@@ -259,7 +259,7 @@ jobs:
             --set image.repository=${REGISTRY}/${ECR_REPOSITORY} \
             --set image.tag=${GITHUB_SHA} \
             --set image.pullPolicy=Always \
-            --set-string database.url=${DATABASE_URL} \
+            --set-string database.url="${{ secrets.DATABASE_URL }}" \
             --wait \
             --timeout 10m
           rc=$?
