@@ -50,3 +50,25 @@ resource "aws_iam_role_policy_attachment" "ecr_power_user" {
   role       = aws_iam_role.github_actions.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
 }
+
+data "aws_iam_policy_document" "eks_describe_cluster" {
+  statement {
+    sid     = "DescribeSpecificCluster"
+    effect  = "Allow"
+    actions = ["eks:DescribeCluster"]
+
+    resources = [
+      "arn:aws:eks:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/${var.cluster_name}"
+    ]
+  }
+}
+
+resource "aws_iam_policy" "eks_describe_cluster" {
+  name   = "${var.gh_role_name}-eks-describe-cluster"
+  policy = data.aws_iam_policy_document.eks_describe_cluster.json
+}
+
+resource "aws_iam_role_policy_attachment" "eks_describe_cluster" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.eks_describe_cluster.arn
+}
