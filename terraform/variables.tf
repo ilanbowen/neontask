@@ -104,7 +104,7 @@ variable "rds_password" {
   description = "RDS master password (use AWS Secrets Manager in production)"
   type        = string
   sensitive   = true
-  default     = "changeme123"
+  default     = "NeonTask123"
 }
 
 variable "github_runner_token" {
@@ -128,7 +128,7 @@ variable "github_repo" {
 variable "gh_role_name" {
   type        = string
   description = "IAM role name for GitHub Actions OIDC"
-  default     = "GitHubActionsRole1"
+  default     = "GitHubActionsRole"
 }
 
 /* variable "ci_iam_role_arn" {

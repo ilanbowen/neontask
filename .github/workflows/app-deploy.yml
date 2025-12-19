@@ -247,8 +247,8 @@ jobs:
           echo "Deploying application to EKS..."
           echo "Image: ${REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
           
-          export DATABASE_URL="${{ env.DATABASE_URL }}"
-          echo "DATABASE_URL length: ${#DATABASE_URL}"   # safe debug (no value printed)
+          export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+          echo "DATABASE_URL length: ${DATABASE_URL}"   # safe debug (no value printed)
 
           set +e
           # Deploy using local Helm chart
@@ -258,7 +258,7 @@ jobs:
             --set image.repository=${REGISTRY}/${ECR_REPOSITORY} \
             --set image.tag=${GITHUB_SHA} \
             --set image.pullPolicy=Always \
-            --set-string database.url="${{ env.DATABASE_URL }}" \
+            --set-string database.url=${DATABASE_URL} \
             --wait \
             --timeout 10m
           rc=$?

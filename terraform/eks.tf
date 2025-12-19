@@ -11,6 +11,11 @@ module "eks" {
   cluster_endpoint_public_access  = true
   cluster_endpoint_private_access = true
 
+    cluster_endpoint_public_access_cidrs = [
+    "46.116.167.138/32"#,   # your current public IP
+    #"Y.Y.Y.Y/32",   # office/VPN egress IP (if any)
+  ]
+
   
   # tell the module to create and manage aws-auth
   create_aws_auth_configmap = false
