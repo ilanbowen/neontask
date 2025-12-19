@@ -249,9 +249,20 @@ jobs:
           echo "Image: ${REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
           
           export DATABASE_URL="${{ secrets.DATABASE_URL }}"
-          echo "DATABASE_URL length: ${DATABASE_URL}"   # safe debug (no value printed)
+          echo "DATABASE_URL length: ${#DATABASE_URL}"   # safe debug (no value printed)
 
           set +e
+
+          status=$(helm status hello-world-helm -n default --output json 2>/dev/null | jq -r '.info.status' || echo "missing")
+          echo "Helm status: $status"
+          
+          if [[ "$status" == "pending-upgrade" || "$status" == "pending-install" || "$status" == "pending-rollback" ]]; then
+            echo "Release is stuck ($status). Uninstalling to recover..."
+            helm uninstall hello-world-helm -n default || true
+            kubectl delete secret -n default -l owner=helm,name=hello-world-helm --ignore-not-found || true
+          fi
+
+
           # Deploy using local Helm chart
           helm upgrade --install ${{ env.HELM_CHART_NAME }} \
             ./hello-world-helm \
