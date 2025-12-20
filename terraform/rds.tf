@@ -2,8 +2,6 @@
 # For production, prefer using PostgreSQL in Kubernetes via Helm
 
 resource "aws_db_subnet_group" "postgres" {
-  count = var.enable_rds ? 1 : 0
-
   name       = "${var.project_name}-db-subnet-group"
   subnet_ids = module.vpc.private_subnets
 
@@ -13,8 +11,6 @@ resource "aws_db_subnet_group" "postgres" {
 }
 
 resource "aws_security_group" "rds" {
-  count = var.enable_rds ? 1 : 0
-
   name_prefix = "${var.project_name}-rds-"
   vpc_id      = module.vpc.vpc_id
 
@@ -31,10 +27,8 @@ resource "aws_security_group" "rds" {
 }
 
 resource "aws_security_group_rule" "rds_from_eks_nodes" {
-  count = var.enable_rds ? 1 : 0
-
   type                     = "ingress"
-  security_group_id        = aws_security_group.rds[0].id
+  security_group_id        = aws_security_group.rds.id
   from_port                = 5432
   to_port                  = 5432
   protocol                 = "tcp"
@@ -43,8 +37,6 @@ resource "aws_security_group_rule" "rds_from_eks_nodes" {
 }
 
 resource "aws_db_instance" "postgres" {
-  count = var.enable_rds ? 1 : 0
-
   identifier     = "${var.project_name}-db"
   engine         = "postgres"
   engine_version = "15"
@@ -59,11 +51,10 @@ resource "aws_db_instance" "postgres" {
   db_name  = var.rds_database_name
   username = var.rds_username
   password = var.rds_password
-  apply_immediately      = true   # ensures password change is applied now (otherwise waits for maintenance window)
 
 
-  db_subnet_group_name   = aws_db_subnet_group.postgres[0].name
-  vpc_security_group_ids = [aws_security_group.rds[0].id]
+  db_subnet_group_name   = aws_db_subnet_group.postgres.name
+  vpc_security_group_ids = [aws_security_group.rds.id]
 
   backup_retention_period = 7
   backup_window           = "03:00-04:00"
@@ -79,3 +70,20 @@ resource "aws_db_instance" "postgres" {
   }
 }
 
+resource "null_resource" "update_rds_password" {
+  depends_on = [aws_db_instance.postgres]
+  
+  triggers = {
+    password = var.rds_password
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      aws rds modify-db-instance \
+        --db-instance-identifier ${aws_db_instance.postgres.identifier} \
+        --master-user-password '${var.rds_password}' \
+        --apply-immediately \
+        --region ${var.aws_region}
+    EOT
+  }
+}

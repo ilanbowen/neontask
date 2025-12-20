@@ -12,8 +12,8 @@ module "eks" {
   cluster_endpoint_private_access = true
 
     cluster_endpoint_public_access_cidrs = [
-    "46.116.167.138/32"#,   # your current public IP
-    #"Y.Y.Y.Y/32",   # office/VPN egress IP (if any)
+      var.external-source-ip#,
+      #var.office_ip
   ]
 
   

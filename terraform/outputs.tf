@@ -66,10 +66,10 @@ output "ecr_registry_id" {
 
 /* output "rds_endpoint" {
   description = "RDS instance endpoint"
-  value       = var.enable_rds ? aws_db_instance.postgres[0].endpoint : null
+  value       = aws_db_instance.postgres.endpoint
 }
 
 output "rds_database_name" {
   description = "RDS database name"
-  value       = var.enable_rds ? aws_db_instance.postgres[0].db_name : null
+  value       = aws_db_instance.postgres.db_name
 } */

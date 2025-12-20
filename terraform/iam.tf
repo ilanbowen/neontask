@@ -40,12 +40,6 @@ resource "aws_iam_role" "github_actions" {
   description        = "Role for GitHub Actions (OIDC) to deploy"
   assume_role_policy = data.aws_iam_policy_document.github_trust.json
 }
-
-#resource "aws_iam_role_policy_attachment" "admin" {
-#  role       = aws_iam_role.github_actions.name
-#  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
-#}
-
 resource "aws_iam_role_policy_attachment" "ecr_power_user" {
   role       = aws_iam_role.github_actions.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"

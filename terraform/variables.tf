@@ -70,12 +70,6 @@ variable "node_group_desired_size" {
   default     = 2
 }
 
-variable "enable_rds" {
-  description = "Enable RDS PostgreSQL database"
-  type        = bool
-  default     = true
-}
-
 variable "rds_instance_class" {
   description = "RDS instance class"
   type        = string
@@ -131,8 +125,14 @@ variable "gh_role_name" {
   default     = "GitHubActionsRole"
 }
 
-/* variable "ci_iam_role_arn" {
+variable "external-source-ip" {
+  description = "External source IP for access to EKS API"
   type        = string
-  description = "IAM role ARN used by GitHub Actions to deploy to EKS"
-} */
+  default     = "46.116.167.138/32"
+}
 
+variable "office_ip" {
+  description = "Office or VPN egress IP for access to EKS API"
+  type        = string
+  default     = "X.X.X.X/32"
+}
