@@ -21,7 +21,6 @@ env:
   EKS_CLUSTER_NAME: hello-world-eks
   ECR_REPOSITORY: hello-world-app
   HELM_CHART_NAME: hello-world-helm
-  AWS_ROLE_ARN: arn:aws:iam::125206151944:role/GitHubActionsRole
 
 permissions:
   id-token: write
@@ -91,7 +90,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsRole"
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -119,8 +118,8 @@ jobs:
           context: ./app
           push: true
           tags: |
-            125206151944.dkr.ecr.eu-north-1.amazonaws.com/hello-world-app:${{ github.sha }}
-            125206151944.dkr.ecr.eu-north-1.amazonaws.com/hello-world-app:main
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/hello-world-app:${{ github.sha }}
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/hello-world-app:main
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false  # Disable provenance for compatibility
@@ -150,7 +149,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsRole"
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -209,7 +208,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsRole"
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR

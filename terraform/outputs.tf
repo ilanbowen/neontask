@@ -64,7 +64,7 @@ output "ecr_registry_id" {
   value       = aws_ecr_repository.app.registry_id
 }
 
-/* output "rds_endpoint" {
+output "rds_endpoint" {
   description = "RDS instance endpoint"
   value       = aws_db_instance.postgres.endpoint
 }
@@ -72,4 +72,4 @@ output "ecr_registry_id" {
 output "rds_database_name" {
   description = "RDS database name"
   value       = aws_db_instance.postgres.db_name
-} */
+}
