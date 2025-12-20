@@ -45,7 +45,7 @@ resource "aws_instance" "gha_runner" {
   associate_public_ip_address = false
 
   user_data = templatefile("${path.module}/runner_userdata.sh", {
-    GITHUB_URL     = "https://github.com/${var.github_runner_token}/${var.github_repo}"
+    GITHUB_URL     = "https://github.com/${var.github_org}/${var.github_repo}"
     RUNNER_TOKEN   = var.github_runner_token     # short-lived runner token
     RUNNER_LABEL   = "eks-runner"
     RUNNER_VERSION = "2.315.0"                   # or whichever version you want
