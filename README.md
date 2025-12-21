@@ -142,17 +142,6 @@ If you have run the CI/CD workflow, you must manually remove the following resou
    
    Manually delete all images from the two ECR repositories created by Terraform.
    
-   You can do this via AWS Console or CLI:
-```bash
-   # List images
-   aws ecr list-images --repository-name hello-world-app
-   
-   # Delete all images
-   aws ecr batch-delete-image \
-     --repository-name hello-world-app \
-     --image-ids "$(aws ecr list-images --repository-name hello-world-app --query 'imageIds[*]' --output json)"
-```
-
 ### Destroy infrastructure
 
 Once the above steps are complete:
