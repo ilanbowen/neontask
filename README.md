@@ -126,19 +126,47 @@ The application is a small **Flask** service that:
 
 ## Cleanup
 
-To destroy all AWS resources:
+To destroy all AWS resources, follow these steps **in order**:
+
+### Before running Terraform destroy
+
+If you have run the CI/CD workflow, you must manually remove the following resources first:
+
+1. **Uninstall the Helm release**
+```bash
+   helm uninstall hello-world-helm
+```
+   This removes the Kubernetes load balancer, associated security groups, and OIDC provider.
+
+2. **Delete ECR repository images**
+   
+   Manually delete all images from the two ECR repositories created by Terraform.
+   
+   You can do this via AWS Console or CLI:
+```bash
+   # List images
+   aws ecr list-images --repository-name hello-world-app
+   
+   # Delete all images
+   aws ecr batch-delete-image \
+     --repository-name hello-world-app \
+     --image-ids "$(aws ecr list-images --repository-name hello-world-app --query 'imageIds[*]' --output json)"
+```
+
+### Destroy infrastructure
+
+Once the above steps are complete:
 ```bash
 cd terraform
 terraform destroy
 ```
 
-Note - if you have run the workflow some things will need to be removed manually:
-1) helm uninstall hello-world-helm (to remove the load balancer, security group, oidc provider)
-2) need to manually delete any images in the two ECR repositories created.
+> ⚠️ **Important**: Skipping the manual cleanup steps will cause `terraform destroy` to fail.
 
-This needs to be done before the terraform destroy command or it will fail to complete.
+---
 
-> ⚠️ Ensure you also remove the GitHub runner from your repository settings and the secrets.
+> ⚠️ **Note**: Also remove the GitHub self-hosted runner from your repository settings (Settings → Actions → Runners) after infrastructure destruction.
+
 
 ---
 
