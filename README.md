@@ -154,7 +154,7 @@ terraform destroy
 
 ---
 
-> ⚠️ **Note**: Also remove the GitHub self-hosted runner from your repository settings (Settings → Actions → Runners) after infrastructure destruction.
+> ⚠️ **Note**: Also remove the GitHub self-hosted runner and secrets from your repository settings after infrastructure destruction.
 
 
 ---
